@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Whatsapp API by ZAP das Galáxias</title>
+	<style>
+	.client {
+		border: 1px solid #ccc;
+		padding: 20px;
+		box-sizing: border-box;
+		display: inline-block;
+		margin: 10px;
+	}
+	.hide {
+		display: none;
+	}
+	</style>
+</head>
+<body>
+
+	<div id="app">
+		<h1>Whatsapp API</h1>
+		<p>Powered by ZDG</p>
+		<div class="form-container">
+			<label for="client-id">Sessão</label><br>
+			<input type="text" id="client-id" placeholder="Sessão">
+			<br><br>
+			<label for="client-token">Token</label><br>
+			<textarea rows="3" id="client-token" placeholder="Token"></textarea>
+			<br><br>
+			<button class="add-client-btn">Criar cliente</button>
+		</div>
+		<hr>
+		<div class="client-container">
+			<div class="client hide">
+				<h3 class="title"></h3>
+				<p class="token"></p>
+				<img src="" alt="QR Code" id="qrcode">
+				<h3>Logs:</h3>
+				<ul class="logs"></ul>
+				<hr>
+				<h4>Grupos:</h4>
+				<ul class="logs-group"></ul>
+			</div>
+		</div>
+	</div>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+	<script>
+		$(document).ready(function() {
+			var socket = io();
+
+			$('.add-client-btn').click(function() {
+				var clientId = $('#client-id').val();
+				var clientToken = $('#client-token').val();
+
+        var clientClass = 'client-' + clientId;
+				var template = $('.client').first().clone()
+										   .removeClass('hide')
+										   .addClass(clientClass);
+
+				template.find('.title').html(clientId);
+				template.find('.token').html(clientToken);
+				$('.client-container').append(template);
+
+				socket.emit('create-session', {
+					id: clientId,
+					token: clientToken
+				});
+			});
+
+			socket.on('init', function(data) {
+				$('.client-container .client').not(':first').remove();
+				console.log(data);
+				for (var i = 0; i < data.length; i++) {
+					var session = data[i];
+
+					var clientId = session.id;
+					var clientToken = session.token;
+
+          var clientClass = 'client-' + clientId;
+					var template = $('.client').first().clone()
+											   .removeClass('hide')
+											   .addClass(clientClass);
+
+					template.find('.title').html(clientId);
+					template.find('.token').html(clientToken);
+					$('.client-container').append(template);
+
+					if (session.ready) {
+						$(`.client.${clientClass} .logs`).append($('<li>').text('Dispositivo está pronto!'));
+					} else {
+						$(`.client.${clientClass} .logs`).append($('<li>').text('Conectando...'));
+					}
+				}
+			});
+
+			socket.on('remove-session', function(id) {
+				$(`.client.client-${id}`).remove();
+			});
+
+			socket.on('message', function(data) {
+				$(`.client.client-${data.id} .logs`).append($('<li>').text(data.text));
+			});
+
+			socket.on('message-group', function(data) {
+				$(`.client.client-${data.id} .logs-group`).append($('<li>').text(data.text));
+			});
+
+			socket.on('qr', function(data) {
+				$(`.client.client-${data.id} #qrcode`).attr('src', data.src);
+				$(`.client.client-${data.id} #qrcode`).show();
+			});
+
+			socket.on('ready', function(data) {
+				$(`.client.client-${data.id} #qrcode`).hide();
+			});
+
+			socket.on('authenticated', function(data) {
+				$(`.client.client-${data.id} #qrcode`).hide();
+			});
+		});
+	</script>
+</body>
+</html>
